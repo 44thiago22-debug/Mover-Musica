@@ -19,15 +19,17 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: Crear estructura de Android Nativo
+    - name: Crear proyecto Android completo
       run: |
         mkdir -p app/src/main/java/com/mi_app/movermusica
-        mkdir -p app/src/main
+        mkdir -p app/src/main/res/values
         
-        # Mover el archivo que creaste a su carpeta correcta
-        mv MainActivity.java app/src/main/java/com/mi_app/movermusica/MainActivity.java
+        # Mover archivo principal
+        if [ -f "MainActivity.java" ]; then
+          mv MainActivity.java app/src/main/java/com/mi_app/movermusica/MainActivity.java
+        fi
         
-        # Crear el manifiesto con los permisos de almacenamiento
+        # Crear Manifiesto
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <manifest xmlns:android="http://android.com" package="com.mi_app.movermusica">
             <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -42,16 +44,10 @@ jobs:
         </manifest>
         EOF
 
-        # Crear el archivo de configuracion del proyecto
-        cat << 'EOF' > build.gradle
-        buildscript {
-            repositories { google() { content { includeGroupAndSubgroups("android.arch") }; content { includeGroupAndSubgroups("com.android") } }; mavenCentral() }
-            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
-        }
-        allprojects { repositories { google(); mavenCentral() } }
-        EOF
+        # Crear Estilos
+        echo '<resources><style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light"/></resources>' > app/src/main/res/values/styles.xml
 
-        # Crear el modulo de la aplicacion
+        # Crear build.gradle de la App
         cat << 'EOF' > app/build.gradle
         plugins { id 'com.android.application' }
         android {
@@ -59,25 +55,28 @@ jobs:
             compileSdk 34
             defaultConfig { applicationId "com.mi_app.movermusica"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }
         }
-        dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
+        dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+        EOF
+
+        # Crear settings.gradle
+        echo "include ':app'" > settings.gradle
+
+        # Crear build.gradle Raiz con nueva sintaxis compatible
+        cat << 'EOF' > build.gradle
+        plugins {
+            id 'com.android.application' version '8.2.2' apply false
         }
         EOF
 
-        # Crear el archivo de configuracion general
-        echo "include ':app'" > settings.gradle
-        
-        # Crear estilos basicos para que no falle al compilar
-        mkdir -p app/src/main/res/values
-        echo '<resources><style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light"/></resources>' > app/src/main/res/values/styles.xml
+        # Instalar el arrancador de Gradle oficial (Wrapper) para evitar errores globales
+        gradle wrapper --gradle-version 8.5
 
-    - name: Compilar APK con Gradle
-      run: |
-        chmod +x     # Si existiera gradlew, pero usaremos gradle global
-        gradle assembleDebug
+    - name: Compilar APK con Wrapper
+      run: ./gradlew assembleDebug
 
     - name: Subir el APK final de 1MB
       uses: actions/upload-artifact@v4
       with:
         name: App_Mover_Musica_SD
         path: app/build/outputs/apk/debug/app-debug.apk
+
