@@ -68,8 +68,11 @@ jobs:
         }
         EOF
 
-        # Instalar el arrancador de Gradle oficial (Wrapper) para evitar errores globales
+        # Instalar el arrancador de Gradle oficial (Wrapper)
         gradle wrapper --gradle-version 8.5
+
+    - name: Otorgar permisos de ejecucion
+      run: chmod +x gradlew
 
     - name: Compilar APK con Wrapper
       run: ./gradlew assembleDebug
@@ -79,4 +82,3 @@ jobs:
       with:
         name: App_Mover_Musica_SD
         path: app/build/outputs/apk/debug/app-debug.apk
-
