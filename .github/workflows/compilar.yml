@@ -1,0 +1,83 @@
+name: Compilar APK Ultra Ligero
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Descargar codigo
+      uses: actions/checkout@v4
+
+    - name: Configurar Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Crear estructura de Android Nativo
+      run: |
+        mkdir -p app/src/main/java/com/mi_app/movermusica
+        mkdir -p app/src/main
+        
+        # Mover el archivo que creaste a su carpeta correcta
+        mv MainActivity.java app/src/main/java/com/mi_app/movermusica/MainActivity.java
+        
+        # Crear el manifiesto con los permisos de almacenamiento
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <manifest xmlns:android="http://android.com" package="com.mi_app.movermusica">
+            <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+            <application android:label="Mover Musica" android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                <activity android:name=".MainActivity" android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # Crear el archivo de configuracion del proyecto
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories { google() { content { includeGroupAndSubgroups("android.arch") }; content { includeGroupAndSubgroups("com.android") } }; mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+        }
+        allprojects { repositories { google(); mavenCentral() } }
+        EOF
+
+        # Crear el modulo de la aplicacion
+        cat << 'EOF' > app/build.gradle
+        plugins { id 'com.android.application' }
+        android {
+            namespace 'com.mi_app.movermusica'
+            compileSdk 34
+            defaultConfig { applicationId "com.mi_app.movermusica"; minSdk 21; targetSdk 34; versionCode 1; versionName "1.0" }
+        }
+        dependencies {
+            implementation 'androidx.appcompat:appcompat:1.6.1'
+        }
+        EOF
+
+        # Crear el archivo de configuracion general
+        echo "include ':app'" > settings.gradle
+        
+        # Crear estilos basicos para que no falle al compilar
+        mkdir -p app/src/main/res/values
+        echo '<resources><style name="Theme.AppCompat.Light.NoActionBar" parent="Theme.AppCompat.Light"/></resources>' > app/src/main/res/values/styles.xml
+
+    - name: Compilar APK con Gradle
+      run: |
+        chmod +x     # Si existiera gradlew, pero usaremos gradle global
+        gradle assembleDebug
+
+    - name: Subir el APK final de 1MB
+      uses: actions/upload-artifact@v4
+      with:
+        name: App_Mover_Musica_SD
+        path: app/build/outputs/apk/debug/app-debug.apk
